@@ -64,17 +64,4 @@ func main() {
 		fmt.Printf("Error encountered, terminating: %v", err)
 		os.Exit(1)
 	}
-
-	// logs, err := cli.ContainerLogs(ctx, "7ea3b2f057bbf5f9e5b199e29c7e21008d293b9815d74954dedfa8f50156c683", container.LogsOptions{ShowStdout: true, ShowStderr: true})
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer logs.Close()
-
-	// data, err := io.ReadAll(logs)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// fmt.Println(string(data))
 }

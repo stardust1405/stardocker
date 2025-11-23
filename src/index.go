@@ -75,7 +75,7 @@ func (m indexModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 
 			case "List Containers":
-				m := InitListContainersModel(m.dockerClient)
+				m := InitListContainersModel(m.dockerClient, m.width, m.height)
 				return m, m.Init()
 
 			case "List Images":
@@ -111,7 +111,7 @@ func (m indexModel) View() string {
 	// ASCII 12
 	// Mono 12
 
-	title := lipgloss.PlaceHorizontal(m.width, lipgloss.Center, TitleStyle.Render(bigTitle))
+	title := lipgloss.PlaceHorizontal(m.width, lipgloss.Left, TitleStyle.Render(bigTitle))
 
 	doc.WriteString(title)
 
