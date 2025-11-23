@@ -59,7 +59,7 @@ func main() {
 	// Close the docker client when done
 	defer dockerClient.Close()
 
-	p := tea.NewProgram(src.InitHomeModel(dockerClient), tea.WithAltScreen())
+	p := tea.NewProgram(src.InitIndexModel(dockerClient), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error encountered, terminating: %v", err)
 		os.Exit(1)

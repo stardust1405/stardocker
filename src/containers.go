@@ -73,7 +73,9 @@ func (l listContainersModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch msg.String() {
 		case "esc":
-			return InitHomeModel(l.dockerClient), nil
+			m := InitIndexModel(l.dockerClient)
+			return m, m.Init()
+
 		case "up", "k":
 			if l.nestedCursorActivated {
 				if l.nestedCursor1 > 0 {
@@ -144,7 +146,7 @@ func (l listContainersModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (l listContainersModel) View() string {
-	s := "\nList Containers\n\n"
+	s := "\nContainers\n\n"
 
 	for i, container := range l.containers {
 		cursor := "  "
