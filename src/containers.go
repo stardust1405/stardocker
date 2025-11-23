@@ -144,11 +144,9 @@ func (l listContainersModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				StartContainer(l.dockerClient, selectedContainer.ID)
 			}
 
-			if selectedContainer.Type == TypeComposeStack {
-				if l.nestedCursorActivated {
-					selectedNestedContainer := selectedContainer.Children[l.nestedCursor1]
-					StartContainer(l.dockerClient, selectedNestedContainer.ID)
-				}
+			if selectedContainer.Type == TypeComposeStack && l.nestedCursorActivated {
+				selectedNestedContainer := selectedContainer.Children[l.nestedCursor1]
+				StartContainer(l.dockerClient, selectedNestedContainer.ID)
 			}
 		case "d":
 			selectedContainer := l.containers[l.cursor]
@@ -157,17 +155,19 @@ func (l listContainersModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				StopContainer(l.dockerClient, selectedContainer.ID)
 			}
 
-			if selectedContainer.Type == TypeComposeStack {
-				if l.nestedCursorActivated {
-					selectedNestedContainer := selectedContainer.Children[l.nestedCursor1]
-					StopContainer(l.dockerClient, selectedNestedContainer.ID)
-				}
+			if selectedContainer.Type == TypeComposeStack && l.nestedCursorActivated {
+				selectedNestedContainer := selectedContainer.Children[l.nestedCursor1]
+				StopContainer(l.dockerClient, selectedNestedContainer.ID)
 			}
 		}
 	case tickMsg:
 		selectedContainer := l.containers[l.cursor]
 		if selectedContainer.Type == TypeContainer {
 			l.slectedContainerLogs = GetContainerLogs(l.dockerClient, l.containers[l.cursor].ID)
+		}
+		if selectedContainer.Type == TypeComposeStack && l.nestedCursorActivated {
+			selectedNestedContainer := selectedContainer.Children[l.nestedCursor1]
+			l.slectedContainerLogs = GetContainerLogs(l.dockerClient, selectedNestedContainer.ID)
 		}
 		l.containers = FetchContainers(l.dockerClient)
 		return l, tickCmd()
@@ -232,19 +232,6 @@ func (l listContainersModel) View() string {
 	docLeft.WriteString(content)
 
 	docRight := strings.Builder{}
-
-	// logs, err := cli.ContainerLogs(ctx, "7ea3b2f057bbf5f9e5b199e29c7e21008d293b9815d74954dedfa8f50156c683", container.LogsOptions{ShowStdout: true, ShowStderr: true})
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer logs.Close()
-
-	// data, err := io.ReadAll(logs)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// fmt.Println(string(data))
 
 	docRight.WriteString(l.slectedContainerLogs)
 
