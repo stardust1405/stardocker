@@ -53,7 +53,8 @@ func (l listImagesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch msg.String() {
 		case "esc":
-			return InitIndexModel(l.dockerClient), nil
+			m := InitIndexModel(l.dockerClient)
+			return m, m.Init()
 		case "up", "k":
 			if l.cursor > 0 {
 				l.cursor--
