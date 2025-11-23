@@ -7,22 +7,25 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/docker/go-sdk/client"
 )
 
-// Home Model
+// index Model
 
-type homeModel struct {
+type indexModel struct {
 	cursor           int
 	menuItems        []string
 	selectedMenuItem string
 	help             help.Model
 	keys             keyMap
 	dockerClient     client.SDKClient
+	width            int
+	height           int
 }
 
-func InitHomeModel(dockerClient client.SDKClient) homeModel {
-	return homeModel{
+func InitIndexModel(dockerClient client.SDKClient) indexModel {
+	return indexModel{
 		menuItems:    []string{"List Containers", "List Images", "Exit"},
 		help:         help.New(),
 		keys:         keys,
@@ -30,12 +33,18 @@ func InitHomeModel(dockerClient client.SDKClient) homeModel {
 	}
 }
 
-func (m homeModel) Init() tea.Cmd {
+func (m indexModel) Init() tea.Cmd {
 	return tea.SetWindowTitle("StarDocker")
 }
 
-func (m homeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m indexModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		return m, nil
+
 	case tea.KeyMsg:
 		// Handle help
 		switch {
@@ -44,22 +53,31 @@ func (m homeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch msg.String() {
+
 		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--
 			}
+
 		case "down", "j":
 			if m.cursor < len(m.menuItems)-1 {
 				m.cursor++
 			}
+
+		case "q":
+			return m, tea.Quit
+
 		case "enter":
 			m.selectedMenuItem = m.menuItems[m.cursor]
 			switch m.selectedMenuItem {
+
 			case "Exit":
 				return m, tea.Quit
+
 			case "List Containers":
 				m := InitListContainersModel(m.dockerClient)
 				return m, m.Init()
+
 			case "List Images":
 				m := InitListImagesModel(m.dockerClient)
 				return m, m.Init()
@@ -70,8 +88,37 @@ func (m homeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m homeModel) View() string {
-	s := "\n******** StarDocker welcomes you! **********\n\n"
+func (m indexModel) View() string {
+	doc := strings.Builder{}
+
+	bigTitle := `
+	███████╗████████╗ █████╗ ██████╗ ██████╗  ██████╗  ██████╗██╗  ██╗███████╗██████╗ 
+	██╔════╝╚══██╔══╝██╔══██╗██╔══██╗██╔══██╗██╔═══██╗██╔════╝██║ ██╔╝██╔════╝██╔══██╗
+	███████╗   ██║   ███████║██████╔╝██║  ██║██║   ██║██║     █████╔╝ █████╗  ██████╔╝
+	╚════██║   ██║   ██╔══██║██╔══██╗██║  ██║██║   ██║██║     ██╔═██╗ ██╔══╝  ██╔══██╗
+	███████║   ██║   ██║  ██║██║  ██║██████╔╝╚██████╔╝╚██████╗██║  ██╗███████╗██║  ██║
+	╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝  ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
+                                                                                  
+	`
+
+	// Some nice fonts
+	// Terrace
+	// Rubifont
+	// ANSI Compact
+	// Ansi Regular
+	// ANSI Shadow
+	// Delta corps preist 1
+	// ASCII 12
+	// Mono 12
+
+	title := lipgloss.PlaceHorizontal(m.width, lipgloss.Center, TitleStyle.Render(bigTitle))
+
+	doc.WriteString(title)
+
+	doc.WriteString("\n\n")
+
+	// Content Lines
+	contentDoc := strings.Builder{}
 
 	for i, item := range m.menuItems {
 		cursor := " "
@@ -79,17 +126,24 @@ func (m homeModel) View() string {
 			cursor = ">"
 		}
 
-		s += fmt.Sprintf("%s %s\n", cursor, item)
+		contentDoc.WriteString(fmt.Sprintf("%s %s\n", cursor, item))
 	}
+
+	content := lipgloss.PlaceHorizontal(m.width, lipgloss.Left, ContentStyle.Render(contentDoc.String()))
+
+	doc.WriteString(content)
+
+	doc.WriteString("\n\n")
 
 	if m.selectedMenuItem == "Exit" {
-		s += "\nBye!\n"
+		doc.WriteString("Bye!")
 	}
 
+	doc.WriteString("\n\n")
+
 	helpView := m.help.View(m.keys)
-	height := 8 - strings.Count(helpView, "\n")
 
-	s += strings.Repeat("\n", height) + helpView
+	doc.WriteString(lipgloss.PlaceHorizontal(m.width, lipgloss.Left, HelpStyle.Render(helpView)))
 
-	return s
+	return doc.String()
 }
