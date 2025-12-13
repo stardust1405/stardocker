@@ -1,11 +1,11 @@
 package src
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/docker/go-sdk/client"
@@ -14,30 +14,65 @@ import (
 // index Model
 
 type indexModel struct {
-	cursor           int
-	menuItems        []string
-	selectedMenuItem string
-	help             help.Model
-	keys             keyMap
-	dockerClient     client.SDKClient
-	width            int
-	height           int
+	help         help.Model
+	keys         keyMap
+	dockerClient client.SDKClient
+	width        int
+	height       int
+	table        table.Model
 }
 
 func InitIndexModel(dockerClient client.SDKClient) indexModel {
+	columns := []table.Column{
+		{Title: "Index", Width: 6},
+		{Title: "Menu Item", Width: 15},
+	}
+
+	rows := []table.Row{
+		{"0", "Containers"},
+		{"1", "Images"},
+		{"2", "Exit"},
+	}
+
+	t := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithHeight(7),
+	)
+
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderBottom(true).
+		Bold(false)
+	s.Selected = s.Selected.
+		Foreground(lipgloss.Color("229")).
+		Background(lipgloss.Color("57")).
+		Bold(false)
+	t.SetStyles(s)
+
 	return indexModel{
-		menuItems:    []string{"List Containers", "List Images", "Exit"},
 		help:         help.New(),
 		keys:         keys,
 		dockerClient: dockerClient,
+		table:        t,
 	}
 }
+
+var baseStyle = lipgloss.NewStyle().
+	BorderStyle(lipgloss.NormalBorder()).
+	BorderForeground(lipgloss.Color("240")).
+	MarginLeft(4)
 
 func (m indexModel) Init() tea.Cmd {
 	return tea.SetWindowTitle("StarDocker")
 }
 
 func (m indexModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 
 	case tea.WindowSizeMsg:
@@ -54,38 +89,31 @@ func (m indexModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch msg.String() {
 
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-
-		case "down", "j":
-			if m.cursor < len(m.menuItems)-1 {
-				m.cursor++
-			}
-
 		case "q":
 			return m, tea.Quit
 
 		case "enter":
-			m.selectedMenuItem = m.menuItems[m.cursor]
-			switch m.selectedMenuItem {
+			row := m.table.SelectedRow()
+
+			switch row[1] {
 
 			case "Exit":
 				return m, tea.Quit
 
-			case "List Containers":
+			case "Containers":
 				m := InitListContainersModel(m.dockerClient, m.width, m.height)
 				return m, m.Init()
 
-			case "List Images":
+			case "Images":
 				m := InitListImagesModel(m.dockerClient)
 				return m, m.Init()
 			}
 		}
 	}
 
-	return m, nil
+	m.table, cmd = m.table.Update(msg)
+
+	return m, cmd
 }
 
 func (m indexModel) View() string {
@@ -117,29 +145,7 @@ func (m indexModel) View() string {
 
 	doc.WriteString("\n\n")
 
-	// Content Lines
-	contentDoc := strings.Builder{}
-
-	for i, item := range m.menuItems {
-		cursor := " "
-		if m.cursor == i {
-			cursor = ">"
-		}
-
-		contentDoc.WriteString(fmt.Sprintf("%s %s\n", cursor, item))
-	}
-
-	content := lipgloss.PlaceHorizontal(m.width, lipgloss.Left, ContentStyle.Render(contentDoc.String()))
-
-	doc.WriteString(content)
-
-	doc.WriteString("\n\n")
-
-	if m.selectedMenuItem == "Exit" {
-		doc.WriteString("Bye!")
-	}
-
-	doc.WriteString("\n\n")
+	doc.WriteString(baseStyle.Render(m.table.View()) + "\n")
 
 	helpView := m.help.View(m.keys)
 
