@@ -101,8 +101,8 @@ func (m indexModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 
 			case "Containers":
-				m := InitListContainersModel(m.dockerClient, m.width, m.height)
-				return m, m.Init()
+				l := InitListContainersModel(m.dockerClient, m.width, m.height)
+				return l, l.Init()
 
 			case "Images":
 				m := InitListImagesModel(m.dockerClient)

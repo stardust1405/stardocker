@@ -3,8 +3,6 @@ package src
 import (
 	"context"
 	"fmt"
-	"io"
-	"log"
 	"sort"
 	"strings"
 	"time"
@@ -46,6 +44,13 @@ const (
 	TypeComposeStack ContainerType = "compose_stack"
 )
 
+const (
+	ContainerNameIndex  = 1
+	ContainerIDIndex    = 2
+	ContainerStateIndex = 6
+	ContainerTypeIndex  = 7
+)
+
 var tableBaseStyle = lipgloss.NewStyle().
 	BorderStyle(lipgloss.NormalBorder()).
 	BorderForeground(lipgloss.Color("240")).
@@ -67,18 +72,15 @@ func InitListContainersModel(dockerClient client.SDKClient, width int, height in
 		{Title: "⏺", Width: 2},
 		{Title: "Name", Width: 35},
 		{Title: "Container ID", Width: 15},
-		{Title: "Image", Width: 15},
-		{Title: "Ports", Width: 15},
+		{Title: "Image", Width: 25},
+		{Title: "Ports", Width: 5},
 		{Title: "Status", Width: 32},
 		{Title: "State", Width: 10},
 		{Title: "Type", Width: 20},
 	}
 
-	// rows := getRows(allContainers)
-
 	t := table.New(
 		table.WithColumns(columns),
-		// table.WithRows(rows),
 		table.WithFocused(true),
 		table.WithHeight(height-10),
 	)
@@ -107,8 +109,7 @@ func InitListContainersModel(dockerClient client.SDKClient, width int, height in
 }
 
 func (l listContainersModel) Init() tea.Cmd {
-	allContainers := FetchContainers(l.dockerClient)
-	l.table.SetRows(l.getRows(allContainers))
+	l.table.SetRows(l.getRows(FetchContainers(l.dockerClient)))
 	return tea.Batch(tea.SetWindowTitle("Containers"), tickCmd())
 }
 
@@ -136,16 +137,24 @@ func (l listContainersModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.Init()
 
 		case "enter":
-			// return InitViewContainersModel(l.DB, l.Containers[l.cursor], l.ContainersDownloadPercent[l.cursor], "/home/stardust/Downloads"), nil
 			row := l.table.SelectedRow()
-			containerType := row[7]
+			containerType := strings.TrimSpace(row[ContainerTypeIndex])
 
-			if containerType == TypeComposeStack.String() {
-				showChildren := !l.ShowChildrenSet.Contains(row[1])
+			containerName := strings.TrimSpace(row[ContainerNameIndex])
+			containerID := strings.TrimSpace(row[ContainerIDIndex])
+
+			switch containerType {
+
+			case TypeContainer.String():
+				l := InitLogsModel(l.dockerClient, containerID, containerName)
+				return l, l.Init()
+
+			case TypeComposeStack.String():
+				showChildren := !l.ShowChildrenSet.Contains(row[ContainerNameIndex])
 				if showChildren {
-					l.ShowChildrenSet.Add(row[1])
+					l.ShowChildrenSet.Add(row[ContainerNameIndex])
 				} else {
-					l.ShowChildrenSet.Remove(row[1])
+					l.ShowChildrenSet.Remove(row[ContainerNameIndex])
 				}
 				allContainers := FetchContainers(l.dockerClient)
 				l.table.SetRows(l.getRows(allContainers))
@@ -156,9 +165,9 @@ func (l listContainersModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "r":
 			row := l.table.SelectedRow()
-			containerID := strings.TrimSpace(row[2])
-			containerType := strings.TrimSpace(row[7])
-			containerState := strings.TrimSpace(row[6])
+			containerID := strings.TrimSpace(row[ContainerIDIndex])
+			containerType := strings.TrimSpace(row[ContainerTypeIndex])
+			containerState := strings.TrimSpace(row[ContainerStateIndex])
 
 			if containerType == TypeContainer.String() {
 				if containerState == containerTypes.StateRunning {
@@ -167,24 +176,6 @@ func (l listContainersModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if containerState == containerTypes.StateExited {
 					StartContainer(l.dockerClient, containerID)
 				}
-			}
-
-		case "s":
-			row := l.table.SelectedRow()
-			containerID := strings.TrimSpace(row[2])
-			containerType := strings.TrimSpace(row[7])
-
-			if containerType == TypeContainer.String() {
-				StartContainer(l.dockerClient, containerID)
-			}
-
-		case "d":
-			row := l.table.SelectedRow()
-			containerID := strings.TrimSpace(row[2])
-			containerType := strings.TrimSpace(row[7])
-
-			if containerType == TypeContainer.String() {
-				StopContainer(l.dockerClient, containerID)
 			}
 		}
 
@@ -344,22 +335,6 @@ func tickCmd() tea.Cmd {
 	return tea.Tick(time.Second*1, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
-}
-
-func GetContainerLogs(dockerClient client.SDKClient, containerID string) string {
-	ctx := context.Background()
-	logs, err := dockerClient.ContainerLogs(ctx, containerID, containerTypes.LogsOptions{ShowStdout: true, ShowStderr: true, Tail: "10"})
-	if err != nil {
-		panic(err)
-	}
-	defer logs.Close()
-
-	data, err := io.ReadAll(logs)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return string(data)
 }
 
 // Define a set type using a map
